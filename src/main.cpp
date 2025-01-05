@@ -1,16 +1,27 @@
 #include <Arduino.h>
+#include <Arduino.h>
 #include "CarControl/CarControl.hpp"
 // put function declarations here:
 int myFunction(int, int);
 
+extern void web_init(void);
 void setup() {
   pinMode(2, OUTPUT);
-  pinMode(16, OUTPUT);
-  pinMode(17, OUTPUT);
-  pinMode(18, OUTPUT);
-  pinMode(19, OUTPUT);
-  Serial.begin(115200);
-
+  pinMode(14, OUTPUT);
+  digitalWrite(14,0);
+  pinMode(27, OUTPUT);
+  digitalWrite(27,0);
+  pinMode(12, OUTPUT);
+  digitalWrite(12,0);
+  pinMode(13, OUTPUT);
+  digitalWrite(13,0);
+  //ledcSetup(6, 50, 16); // channel 6, 50 Hz, 16-bit width
+  Serial.begin(115200);         // set up seriamonitor at 115200 bps
+  Serial.setDebugOutput(true);
+  Serial.println();
+  Serial.println("*ESP32 samrt car*");
+  Serial.println("--------------------------------------------------------");
+  web_init();
 }
 void led_blink(uint8_t channnel)
 {
@@ -25,14 +36,14 @@ void led_blink(uint8_t channnel)
         digitalWrite(channnel,0);
         led_status = 0;
     }
-    Serial.printf("LED STATUS %d\n",led_status);
+    //Serial.printf("LED STATUS %d\n",led_status);
 }
-
+smartcarContol car1;
 void loop() {
   // put your main code here, to run repeatedly:
-  smartcarContol car;
-  car.car_Forward();
+  car1.car_forward();
   led_blink(2);
+  //digitalWrite(2,1);
   delay(500);
 }
 

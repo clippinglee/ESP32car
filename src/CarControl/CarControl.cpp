@@ -19,6 +19,12 @@ void smartcarContol::car_forward(void)
     L298N_MotorControl(1,MOTOR_FORWARD);
 }
 
+void smartcarContol::car_sotp(void)
+{
+    L298N_MotorControl(0,MOTOR_STOP);
+    L298N_MotorControl(1,MOTOR_STOP);
+}
+
 
 void smartcarContol::car_reverse(void)
 {

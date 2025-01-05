@@ -3,6 +3,7 @@
 
 class smartcarContol{
     public:
+    void car_sotp(void);
     void car_forward(void);
     void car_turnRight(void);
     void car_turnLeft(void);
