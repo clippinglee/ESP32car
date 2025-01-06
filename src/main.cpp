@@ -4,7 +4,7 @@
 // put function declarations here:
 int myFunction(int, int);
 
-extern void web_init(void);
+extern void ble_init(void);
 void setup() {
   pinMode(2, OUTPUT);
   pinMode(14, OUTPUT);
@@ -21,7 +21,7 @@ void setup() {
   Serial.println();
   Serial.println("*ESP32 samrt car*");
   Serial.println("--------------------------------------------------------");
-  web_init();
+  ble_init();
 }
 void led_blink(uint8_t channnel)
 {
@@ -38,6 +38,7 @@ void led_blink(uint8_t channnel)
     }
     //Serial.printf("LED STATUS %d\n",led_status);
 }
+extern void ble_main(void);
 smartcarContol car1;
 void loop() {
   // put your main code here, to run repeatedly:
@@ -45,5 +46,6 @@ void loop() {
   led_blink(2);
   //digitalWrite(2,1);
   delay(500);
+  ble_main();
 }
 
