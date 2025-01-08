@@ -3,6 +3,7 @@
 
 class smartcarContol{
     public:
+    static uint8_t comunicate_connected;
     void car_sotp(void);
     void car_forward(void);
     void car_turnRight(void);

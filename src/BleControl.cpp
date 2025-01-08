@@ -12,16 +12,12 @@
 #define BACKWARD 2
 #define LEFT 3
 #define RIGHT 4
-#define FORWARD_LEFT 5
-#define FORWARD_RIGHT 6
-#define BACKWARD_LEFT 7
-#define BACKWARD_RIGHT 8
+#define LEFT_CYCLE 5
+#define RIGHT_CYCLE 6
+#define STOP 7
+#define ACC 8
 
 
-
-
-#define STOP 0
-#define START 1
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 
@@ -104,6 +100,7 @@ void processCarMovement(std::string inputValue)
   int getcontrol = std::stoi(inputValue);
   int getspeed = getcontrol/10;
   int getDiretion = getcontrol%10;
+  car.comunicate_connected = 1;
   switch (getDiretion)
   {
 
@@ -127,24 +124,19 @@ void processCarMovement(std::string inputValue)
       Serial.println("car_turnRight");
       break;
 
-    case FORWARD_LEFT:
+    case LEFT_CYCLE:
       car.car_turnLeftCycle();
       Serial.println("car_turnLeftCycle");
       break;
-    case FORWARD_RIGHT:
+    case RIGHT_CYCLE:
       car.car_turnRightCycle();
       Serial.println("car_turnRightCycle");
       break;
 
-    case BACKWARD_LEFT:
+    case STOP:
       car.car_sotp();
       Serial.println("car_sotp");
       break;
-
-    case STOP:
-
-      break;
-
     default:
 
       break;

@@ -1,6 +1,6 @@
 #include "L298N.h"
 #include "CarControl.hpp"
-
+uint8_t smartcarContol::comunicate_connected = 0;
 void smartcarContol::car_turnRight(void)
 {
     L298N_MotorControl(0,MOTOR_FORWARD);

@@ -5,6 +5,7 @@
 int myFunction(int, int);
 
 extern void ble_init(void);
+smartcarContol car1;
 void setup() {
   pinMode(2, OUTPUT);
   pinMode(14, OUTPUT);
@@ -15,6 +16,7 @@ void setup() {
   digitalWrite(12,0);
   pinMode(13, OUTPUT);
   digitalWrite(13,0);
+  car1.comunicate_connected = 0;
   //ledcSetup(6, 50, 16); // channel 6, 50 Hz, 16-bit width
   Serial.begin(115200);         // set up seriamonitor at 115200 bps
   Serial.setDebugOutput(true);
@@ -39,10 +41,25 @@ void led_blink(uint8_t channnel)
     //Serial.printf("LED STATUS %d\n",led_status);
 }
 extern void ble_main(void);
-smartcarContol car1;
+uint32_t timecnt;
 void loop() {
+  timecnt++;
+
   // put your main code here, to run repeatedly:
-  car1.car_forward();
+  if(car1.comunicate_connected == 0)
+  {
+    if(timecnt < 10)
+    car1.car_forward();
+    else if(timecnt < 20)
+    car1.car_reverse();
+    else if(timecnt < 30)
+    car1.car_turnLeftCycle();
+    else if(timecnt < 40)
+    car1.car_sotp();
+    else
+    timecnt = 0;
+  }
+  
   led_blink(2);
   //digitalWrite(2,1);
   delay(500);
