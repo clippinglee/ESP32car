@@ -8,7 +8,7 @@ extern void ble_init(void);
 smartcarContol car1;
 void setup() {
   pinMode(2, OUTPUT);
-  pinMode(14, OUTPUT);
+  pinMode(26, OUTPUT);
   digitalWrite(14,0);
   pinMode(27, OUTPUT);
   digitalWrite(27,0);
@@ -55,9 +55,28 @@ void loop() {
     else if(timecnt < 30)
     car1.car_turnLeftCycle();
     else if(timecnt < 40)
-    car1.car_sotp();
+    car1.car_stop();
     else
     timecnt = 0;
+  }
+  else
+  {
+    if((car1.status == LEFT) || (car1.status == RIGHT))
+    {
+      if(car1.laststatus ==  FORWARD)
+      {
+        car1.car_forward();
+      }
+      else if (car1.laststatus ==  BACKWARD)
+      {
+        car1.car_reverse();
+      }
+      else
+      {
+        car1.car_stop();
+      }
+    }
+
   }
   
   led_blink(2);

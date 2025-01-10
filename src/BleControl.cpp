@@ -8,16 +8,6 @@
 #include "CarControl/CarControl.hpp"
 
 
-#define FORWARD 1
-#define BACKWARD 2
-#define LEFT 3
-#define RIGHT 4
-#define LEFT_CYCLE 5
-#define RIGHT_CYCLE 6
-#define STOP 7
-#define ACC 8
-
-
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 
@@ -100,31 +90,37 @@ void processCarMovement(std::string inputValue)
   int getcontrol = std::stoi(inputValue);
   int getspeed = getcontrol/10;
   int getDiretion = getcontrol%10;
+  uint8_t laststatus;
   car.comunicate_connected = 1;
   switch (getDiretion)
   {
 
     case FORWARD:
+      car.laststatus = car.status;
       car.car_forward();
       Serial.println("car_forward");
       break;
 
     case BACKWARD:
+      car.laststatus = car.status;
       car.car_reverse();
       Serial.println("car_reverse");
       break;
 
     case LEFT:
+      car.laststatus = car.status;
       car.car_turnLeft();
       Serial.println("car_turnLeft");
       break;
 
     case RIGHT:
-      car.car_turnRight();
+      car.laststatus = car.status;
+      car.car_turnRight();      
       Serial.println("car_turnRight");
       break;
 
     case LEFT_CYCLE:
+      car.laststatus = car.status;
       car.car_turnLeftCycle();
       Serial.println("car_turnLeftCycle");
       break;
@@ -134,8 +130,9 @@ void processCarMovement(std::string inputValue)
       break;
 
     case STOP:
-      car.car_sotp();
-      Serial.println("car_sotp");
+      car.laststatus = car.status;
+      car.car_stop();
+      Serial.println("car_stop");
       break;
     default:
 
