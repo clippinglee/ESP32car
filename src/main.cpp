@@ -1,10 +1,10 @@
 #include <Arduino.h>
-#include <Arduino.h>
 #include "CarControl/CarControl.hpp"
 // put function declarations here:
 int myFunction(int, int);
-
-extern void ble_init(void);
+void carmotion(void *pvParameters) ;
+extern void wifi_init();
+extern void car_impl(smartcarContol* impl);
 smartcarContol car1;
 void setup() {
   pinMode(2, OUTPUT);
@@ -16,14 +16,18 @@ void setup() {
   digitalWrite(12,0);
   pinMode(13, OUTPUT);
   digitalWrite(13,0);
-  car1.comunicate_connected = 0;
+
   //ledcSetup(6, 50, 16); // channel 6, 50 Hz, 16-bit width
   Serial.begin(115200);         // set up seriamonitor at 115200 bps
   Serial.setDebugOutput(true);
   Serial.println();
   Serial.println("*ESP32 samrt car*");
   Serial.println("--------------------------------------------------------");
-  ble_init();
+  car1.comunicate_connected = 0;
+  car1.init();
+  xTaskCreatePinnedToCore(carmotion, "carmotion", 10000, NULL, 5, NULL, 0);
+  wifi_init();
+  car_impl(&car1);
 }
 void led_blink(uint8_t channnel)
 {
@@ -40,48 +44,55 @@ void led_blink(uint8_t channnel)
     }
     //Serial.printf("LED STATUS %d\n",led_status);
 }
-extern void ble_main(void);
-uint32_t timecnt;
+
 void loop() {
-  timecnt++;
-
   // put your main code here, to run repeatedly:
-  if(car1.comunicate_connected == 0)
-  {
-    if(timecnt < 10)
-    car1.car_forward();
-    else if(timecnt < 20)
-    car1.car_reverse();
-    else if(timecnt < 30)
-    car1.car_turnLeftCycle();
-    else if(timecnt < 40)
-    car1.car_stop();
-    else
-    timecnt = 0;
-  }
-  else
-  {
-    if((car1.status == LEFT) || (car1.status == RIGHT))
-    {
-      if(car1.laststatus ==  FORWARD)
-      {
-        car1.car_forward();
-      }
-      else if (car1.laststatus ==  BACKWARD)
-      {
-        car1.car_reverse();
-      }
-      else
-      {
-        car1.car_stop();
-      }
-    }
 
-  }
-  
   led_blink(2);
   //digitalWrite(2,1);
   delay(500);
-  ble_main();
+
 }
 
+uint32_t timecnt;
+void carmotion(void *pvParameters) {
+  Serial.println("-----------------carmotion----------------------------------");
+  while (1) {
+    timecnt++;
+    if(car1.comunicate_connected == 0)
+    {   
+        if(timecnt < 10)
+            car1.car_forward();
+        else if(timecnt < 20)
+            car1.car_reverse();
+        else if(timecnt < 30)
+            car1.car_turnLeftCycle();
+        else if(timecnt < 40)
+            car1.car_stop();
+        else
+            timecnt = 0;
+        delay(500);
+    }
+    else
+    {
+        if((car1.status == LEFT) || (car1.status == RIGHT))
+        {
+            delay(200);
+            if(car1.laststatus ==  FORWARD)
+            {
+                car1.car_forward();
+            }
+            else if (car1.laststatus ==  BACKWARD)
+            {
+                car1.car_reverse();
+            }
+            else
+            {
+                car1.car_stop();
+            }
+
+        }
+    }
+    
+  }
+}
