@@ -9,7 +9,7 @@
 //!
 //! 方向脚用具体 PIN 类型存储, 避免 AnyPin 擦除的 API 差异。
 
-use embassy_rp::gpio::{Level, Output};
+use embassy_rp::gpio::Output;
 use embassy_rp::pwm::{Pwm, SetDutyCycle};
 
 use crate::config;

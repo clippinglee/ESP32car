@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = [
+    "protocol",
+    "rp2040_car",
+]
+exclude = [
+    "esp32_key_pad",
+]
