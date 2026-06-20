@@ -1,0 +1,41 @@
+[package]
+name = "rp2040_car"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "rp2040_car"
+path = "src/main.rs"
+
+[dependencies]
+protocol = { path = "../protocol" }
+
+embassy-executor = { version = "0.10", features = ["platform-cortex-m", "executor-thread", "defmt"] }
+embassy-time     = { version = "0.5",  features = ["defmt", "defmt-timestamp-uptime"] }
+embassy-rp       = { version = "0.10", features = ["defmt", "unstable-pac", "time-driver", "critical-section-impl", "rp2040", "rt"] }
+
+defmt        = "1.0"
+defmt-rtt    = "1.0"
+
+cortex-m     = { version = "0.7" }
+cortex-m-rt  = "0.7"
+panic-probe  = { version = "1.0", features = ["print-defmt"] }
+
+embedded-hal      = "1.0"
+embedded-hal-bus  = { version = "0.1", features = ["async"] }
+
+# nRF24L01 驱动 (embedded-hal 1.0)。骨架阶段未实例化, 但保留以便后续接入。
+rf24-rs = { version = "0.3", default-features = false }
+
+# 协议序列化(radio.rs 解析用)
+postcard = { version = "1.1", default-features = false }
+
+static_cell  = "2"
+portable-atomic = { version = "1", features = ["critical-section"] }
+
+[features]
+default = []
+
+[build-dependencies]
+# no extra

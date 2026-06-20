@@ -1,0 +1,10 @@
+[target.thumbv6m-none-eabi]
+runner = "probe-rs run --chip RP2040"
+# 也可用 elf2uf2: runner = "elf2uf2-rs -d"
+# 链接参数由 build.rs 提供(-Tlink.x / -Tlink-rp.x / -Tdefmt.x / --nmagic)
+
+[build]
+target = "thumbv6m-none-eabi"
+
+[env]
+DEFMT_LOG = "debug"

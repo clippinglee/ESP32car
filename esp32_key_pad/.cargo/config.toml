@@ -1,0 +1,14 @@
+[target.xtensa-esp32-none-elf]
+runner = "espflash flash --monitor"
+# 也可用: runner = "espflash flash"
+
+# 链接参数由 build.rs 提供
+rustflags = [
+    "-C", "link-arg=-nostartfiles",
+]
+
+[build]
+target = "xtensa-esp32-none-elf"
+
+[env]
+MCU = "esp32"

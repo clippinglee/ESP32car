@@ -1,0 +1,13 @@
+# Rust build artifacts
+target/
+**/*.rs.bk
+
+# Lock files (binary firmware, not lib — use per-project lock)
+protocol/Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+
+# PlatformIO (legacy C++ project, kept only as reference if present)
+.pio/
