@@ -1,149 +1,111 @@
 #![no_std]
 #![no_main]
 
-use defmt_rtt as _;
+esp_bootloader_esp_idf::esp_app_desc!();
+
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Ticker};
 use esp_backtrace as _;
-use esp_hal::adc::{Adc, AdcConfig, Attenuation};
-use esp_hal::delay::Block;
-use esp_hal::gpio::{Input, Level, Output, Pull};
-use esp_hal::spi::{Config as SpiConfig, Mode as SpiMode, Spi, Polarity};
+use esp_hal::analog::adc::{Adc, AdcConfig, Attenuation};
+use esp_hal::gpio::{AnyPin, Input, InputConfig, Level, Output, OutputConfig, Pull};
+use esp_hal::i2c::master::{Config as I2cConfig, I2c};
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
-use esp_hal::{init, peripherals};
+use esp_hal::Config as HalConfig;
 use esp_println::println;
-use panic_probe as _;
-use rf24::radio::prelude::*;
-use rf24::radio::{RadioConfig, RF24};
-
-use protocol::{button, ControlPacket, CHANNEL, PAIR_ADDR, TX_RATE_HZ};
+use ssd1306::{mode::BufferedGraphicsMode, prelude::*, I2CDisplayInterface, Ssd1306};
+use embedded_graphics::pixelcolor::BinaryColor;
 
 mod config;
+mod emotions;
+
+fn pin(n: u8) -> AnyPin<'static> {
+    unsafe { AnyPin::steal(n) }
+}
 
 #[esp_hal_embassy::main]
-async fn main(spawner: Spawner) {
-    let peripherals = peripherals::SYSTEM::conjure();
-    let system = init!(peripherals);
-    let timg0 = TimerGroup::new(system.timg0);
+async fn main(_spawner: Spawner) {
+    let peripherals = esp_hal::init(HalConfig::default());
+    let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
 
-    println!("ESP32 remote controller booting");
+    println!("Emoji display start");
 
-    // ---- LED ----
-    let mut led = Output::new(config::LED_PIN, Level::Low);
+    let mut led = Output::new(pin(config::LED_PIN), Level::Low, OutputConfig::default());
 
-    // ---- Joystick ADC ----
+    // Joystick
     let mut adc_config = AdcConfig::new();
-    let joy_x_pin = adc_config.enable_pin_analog(config::JOY_X_PIN, Attenuation::B11dB);
-    let joy_y_pin = adc_config.enable_pin_analog(config::JOY_Y_PIN, Attenuation::B11dB);
-    let mut adc = Adc::new(system.adc1, adc_config);
+    let mut joy_x_pin = adc_config.enable_pin(peripherals.GPIO36, Attenuation::_11dB);
+    let mut joy_y_pin = adc_config.enable_pin(peripherals.GPIO39, Attenuation::_11dB);
+    let mut adc = Adc::new(peripherals.ADC1, adc_config);
 
-    // ---- Buttons (active low, internal pull-up) ----
-    let mut btn_a = Input::new(config::BTN_A, Pull::Up);
-    let mut btn_b = Input::new(config::BTN_B, Pull::Up);
-    let mut btn_c = Input::new(config::BTN_C, Pull::Up);
-    let mut btn_d = Input::new(config::BTN_D, Pull::Up);
+    // Buttons
+    let input_cfg = InputConfig::default().with_pull(Pull::Up);
+    let btn_a = Input::new(pin(config::BTN_A), input_cfg);
+    let btn_b = Input::new(pin(config::BTN_B), input_cfg);
+    let btn_c = Input::new(pin(config::BTN_C), input_cfg);
+    let btn_d = Input::new(pin(config::BTN_D), input_cfg);
 
-    // ---- nRF24L01 SPI (VSPI/SPI2) ----
-    let spi_cfg = SpiConfig {
-        frequency: Rate::from_mhz(8),
-        mode: SpiMode {
-            polarity: Polarity::IdleLow,
-            phase: esp_hal::spi::Phase::CaptureOnFirstTransition,
-        },
-        ..Default::default()
-    };
-    let spi = Spi::new(
-        system.spi2,
-        config::NRF_SCK,
-        config::NRF_MOSI,
-        config::NRF_MISO,
-        config::NRF_CSN,
-        spi_cfg,
-    );
+    // OLED
+    let i2c = I2c::new(peripherals.I2C0, I2cConfig::default().with_frequency(Rate::from_khz(400)))
+        .expect("I2C failed")
+        .with_sda(pin(config::I2C_SDA))
+        .with_scl(pin(config::I2C_SCL));
+    let interface = I2CDisplayInterface::new(i2c);
+    let mut oled = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
+        .into_buffered_graphics_mode();
+    let _ = oled.init();
+    println!("OLED ready");
 
-    let ce_pin = Output::new(config::NRF_CE, Level::Low);
+    let mut emotion_idx: usize = 0;
+    let mut frame: usize = 0;
+    let mut tick_count: u32 = 0;
+    let mut speed_limit: u8 = 50;
 
-    // ---- nRF24L01 初始化 (PTX 模式) ----
-    let mut nrf = RF24::new(ce_pin, spi, Block::new());
-    nrf.init().expect("nRF24 init failed");
-
-    let config = RadioConfig::default()
-        .with_channel(CHANNEL)
-        .with_tx_address(&PAIR_ADDR)
-        .with_ack_payloads(true)
-        .with_dynamic_payloads(true)
-        .with_auto_retries(2, 5);
-
-    nrf.with_config(&config).expect("nRF24 config failed");
-    nrf.as_tx(Some(&PAIR_ADDR)).expect("nRF24 as_tx failed");
-
-    println!("nRF24 ready (PTX, ch={}, addr={:?})", CHANNEL, PAIR_ADDR);
-
-    // ---- Main loop: sample inputs + TX at TX_RATE_HZ ----
-    let mut seq: u16 = 0;
-    let mut speed_limit: u8 = 50; // default 50%
-    let mut ticker = Ticker::every(Duration::from_hz(TX_RATE_HZ));
+    // 10fps动画, 3秒切换表情 (30帧)
+    let mut ticker = Ticker::every(Duration::from_millis(100));
 
     loop {
-        // Sample joystick
-        let raw_x: u16 = adc.read_blocking(&joy_x_pin);
-        let raw_y: u16 = adc.read_blocking(&joy_y_pin);
-        let axis_x = analog_to_axis(raw_x);
-        let axis_y = analog_to_axis(raw_y);
+        // ADC
+        let raw_x: u16 = nb::block!(adc.read_oneshot(&mut joy_x_pin)).unwrap();
+        let raw_y: u16 = nb::block!(adc.read_oneshot(&mut joy_y_pin)).unwrap();
+        let _axis_x = analog_to_axis(raw_x);
+        let _axis_y = analog_to_axis(raw_y);
 
-        // Sample buttons
+        // Buttons
         let mut buttons: u16 = 0;
-        if btn_a.is_low() {
-            buttons |= button::BTN_A;
-        }
-        if btn_b.is_low() {
-            buttons |= button::BTN_B;
-        }
-        if btn_c.is_low() {
-            buttons |= button::BTN_C;
-        }
-        if btn_d.is_low() {
-            buttons |= button::BTN_D;
+        if btn_a.is_low() { buttons |= 1 << 0; }
+        if btn_b.is_low() { buttons |= 1 << 1; }
+        if btn_c.is_low() { buttons |= 1 << 2; }
+        if btn_d.is_low() { buttons |= 1 << 3; }
+
+        if buttons & (1 << 0) != 0 && buttons & (1 << 3) != 0 {
+            speed_limit = match speed_limit { 25 => 50, 50 => 75, 75 => 100, _ => 25 };
         }
 
-        // BTN_A + BTN_D 同时按: 切换限速档位
-        if buttons & button::BTN_A != 0 && buttons & button::BTN_D != 0 {
-            speed_limit = match speed_limit {
-                25 => 50,
-                50 => 75,
-                75 => 100,
-                _ => 25,
-            };
+        // LED blink
+        if tick_count % 50 == 0 { led.toggle(); }
+
+        // Animation: 每3帧切换眼睛状态, 每30帧切换表情
+        if tick_count % 3 == 0 {
+            frame = (frame + 1) % 2;
+        }
+        if tick_count % 30 == 0 && tick_count > 0 {
+            emotion_idx = (emotion_idx + 1) % emotions::EMOTIONS.len();
+            frame = 0;
         }
 
-        // 构造控制包
-        let pkt = ControlPacket::new(seq, axis_x, axis_y, buttons, speed_limit);
-        seq = seq.wrapping_add(1);
+        // 只显示表情，不显示数值
+        let _ = oled.clear(BinaryColor::Off);
+        let emotion = &emotions::EMOTIONS[emotion_idx];
+        emotions::draw_emotion(&mut oled, emotion, frame);
+        let _ = oled.flush();
 
-        // 序列化并发送
-        let mut payload = [0u8; 32];
-        let result = postcard::to_slice(&pkt, &mut payload);
-        let sent = if let Ok(serialized) = result {
-            nrf.send(serialized, false).unwrap_or(false)
-        } else {
-            false
-        };
-
-        if sent {
-            led.set_high();
-        } else {
-            led.set_low();
-            // 发送失败: 重新进入 TX 模式
-            nrf.as_tx(Some(&PAIR_ADDR)).ok();
-        }
-
+        tick_count += 1;
         ticker.next().await;
     }
 }
 
-/// ADC 原始值 -> 有符号轴值 (-1000..1000), 带死区
 fn analog_to_axis(raw: u16) -> i16 {
     let center = config::JOY_CENTER as i32;
     let dead = config::JOY_DEADZONE as i32;
